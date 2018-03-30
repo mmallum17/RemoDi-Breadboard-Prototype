@@ -1,0 +1,10 @@
+.cproject
+.mxproject
+.project
+.settings
+breadboard.elf.launch
+breadboard.ioc
+mx.scratch
+STM32L152RE_FLASH.ld
+startup
+Debug
