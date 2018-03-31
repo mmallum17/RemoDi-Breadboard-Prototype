@@ -56,6 +56,7 @@
 #include "adc.h"
 #include "buttons.h"
 #include "eeprom.h"
+#include "esp8266.h"
 #include "ra6963.h"
 /* USER CODE END Includes */
 
@@ -128,6 +129,21 @@ int main(void)
   ra6963ClearText();
   ra6963ClearCG();
 
+  esp8266Write("AT", 80, 500);
+  esp8266Write("AT+CWQAP", 80, 500);
+  esp8266Write("AT+CWJAP_CUR=\"SCOTTCAMPUS\",\"mavericks\"", 76, 10000);
+  esp8266Write("AT+CIPSTART=\"TCP\",\"18.221.30.192\",3000", 80, 500);
+  esp8266Write("AT+CIPMODE=1", 80, 500);
+  esp8266Write("AT+CIPSEND", 80, 500);
+
+  serverWrite("1.3", 500);
+  HAL_Delay(500);
+  serverWrite("+++", 500);
+  HAL_Delay(1000);
+
+  esp8266Write("AT+CIPMODE=0", 80, 500);
+  esp8266Write("AT+CIPCLOSE", 80, 500);
+
 /*  byte = readEepromByte(0);
   sprintf(display, "%d", byte);
 
@@ -162,13 +178,13 @@ int main(void)
   /* USER CODE BEGIN 3 */
   while (1)
   {
-	  HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN);
+/*	  HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN);
 	  HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
 	  sprintf(display, "%02d/%02d/20%02d    %02d:%02d:%02d", date.Month, date.Date, date.Year, time.Hours, time.Minutes, time.Seconds);
 	  ra6963ClearText();
 	  ra6963TextGoTo(0, 0);
 	  ra6963WriteString(display);
-	  HAL_Delay(500);
+	  HAL_Delay(500);*/
 /*	  // Read Channel 1 of ADC 1
 	  adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
 	  buffer = adcSingleConversion(1);
@@ -385,7 +401,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, COL_9_Pin|COL_4_Pin|COL_3_Pin|COL_2_Pin 
-                          |COL_1_Pin|ADC2_CS_Pin|SD_CS_Pin, GPIO_PIN_SET);
+                          |COL_1_Pin|ADC2_CS_Pin|SD_CS_Pin | WIFI_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(COL_5_GPIO_Port, COL_5_Pin, GPIO_PIN_SET);
@@ -402,15 +418,15 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, LCD_CD_Pin|LCD_FS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LCD_RV_Pin|WIFI_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LCD_RV_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(WIFI_RESET_GPIO_Port, WIFI_RESET_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : COL_9_Pin COL_4_Pin COL_3_Pin COL_2_Pin 
-                           COL_1_Pin LCD_RV_Pin */
+                           COL_1_Pin LCD_RV_Pin WIFI_CS_Pin */
   GPIO_InitStruct.Pin = COL_9_Pin|COL_4_Pin|COL_3_Pin|COL_2_Pin 
-                          |COL_1_Pin|LCD_RV_Pin;
+                          |COL_1_Pin|LCD_RV_Pin|WIFI_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -437,8 +453,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ADC2_CS_Pin SD_CS_Pin WIFI_CS_Pin */
-  GPIO_InitStruct.Pin = ADC2_CS_Pin|SD_CS_Pin|WIFI_CS_Pin;
+  /*Configure GPIO pins : ADC2_CS_Pin SD_CS_Pin */
+  GPIO_InitStruct.Pin = ADC2_CS_Pin|SD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
