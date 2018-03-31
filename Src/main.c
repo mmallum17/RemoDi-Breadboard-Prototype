@@ -55,6 +55,7 @@
 #include "AD7190.h"
 #include "adc.h"
 #include "buttons.h"
+#include "eeprom.h"
 #include "ra6963.h"
 /* USER CODE END Includes */
 
@@ -91,6 +92,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  uint8_t byte;
+  char display[30];
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -123,6 +126,13 @@ int main(void)
   ra6963ClearGraphic();
   ra6963ClearText();
   ra6963ClearCG();
+
+  byte = readEepromByte(0);
+  sprintf(display, "%d", byte);
+
+  ra6963TextGoTo(0, 0);
+  ra6963WriteString(display);
+  writeEepromByte(0, 15);
 
 /*  if(adcInit(1) && adcInit(2))
   {
