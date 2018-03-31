@@ -52,7 +52,7 @@
 #include "fatfs.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "ra6963.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -114,7 +114,33 @@ int main(void)
   MX_FATFS_Init();
 
   /* USER CODE BEGIN 2 */
+  ra6963Init();
 
+  ra6963ClearGraphic();
+  ra6963ClearText();
+  ra6963ClearCG();
+
+  ra6963Line(0,0, 239, 0);
+  ra6963Line(0,0,0,63);
+  ra6963Line(239,0, 239, 63);
+  ra6963Line(239, 63, 0, 63);
+
+  ra6963Circle(30,30,20);
+  ra6963Line(30, 10, 30, 20);
+
+  ra6963Circle(209,30,20);
+  ra6963Line(209, 10, 209, 20);
+
+  ra6963Rectangle(60, 6, 120, 48);
+
+  ra6963TextGoTo(8,1);
+  ra6963WriteString("radzio.dxp.pl");
+
+  ra6963TextGoTo(8,3);
+  ra6963WriteString("TOSHIBA T6963C");
+
+  ra6963TextGoTo(11,5);
+  ra6963WriteString("AT91SAM7");
   /* USER CODE END 2 */
 
   /* Infinite loop */
