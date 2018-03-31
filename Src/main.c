@@ -92,7 +92,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  uint8_t byte;
+  RTC_TimeTypeDef time;
+  RTC_DateTypeDef date;
   char display[30];
   /* USER CODE END 1 */
 
@@ -127,12 +128,12 @@ int main(void)
   ra6963ClearText();
   ra6963ClearCG();
 
-  byte = readEepromByte(0);
+/*  byte = readEepromByte(0);
   sprintf(display, "%d", byte);
 
   ra6963TextGoTo(0, 0);
   ra6963WriteString(display);
-  writeEepromByte(0, 15);
+  writeEepromByte(0, 15);*/
 
 /*  if(adcInit(1) && adcInit(2))
   {
@@ -161,6 +162,13 @@ int main(void)
   /* USER CODE BEGIN 3 */
   while (1)
   {
+	  HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN);
+	  HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN);
+	  sprintf(display, "%02d/%02d/20%02d    %02d:%02d:%02d", date.Month, date.Date, date.Year, time.Hours, time.Minutes, time.Seconds);
+	  ra6963ClearText();
+	  ra6963TextGoTo(0, 0);
+	  ra6963WriteString(display);
+	  HAL_Delay(500);
 /*	  // Read Channel 1 of ADC 1
 	  adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
 	  buffer = adcSingleConversion(1);
