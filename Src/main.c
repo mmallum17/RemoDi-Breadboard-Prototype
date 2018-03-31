@@ -71,6 +71,9 @@ UART_HandleTypeDef huart4;
 /* Private variables ---------------------------------------------------------*/
 const char* buttonStrings[24] = {"ZERO", "UNITS", "MENU", "UP", "DISPLAY TARE", "TARE", "ENTER", "RIGHT", "LEFT", "CALIBRATE", "DOWN", "GROSS/NET", "3", "2", "1", "5", "6", "4", "8", "9", "7", ".", "0", "DELETE"};
 int count = 0;
+FATFS mynewdiskFatFs; /* File system object for User logical drive */
+FIL MyFile; /* File object */
+char mynewdiskPath[4]; /* User logical drive path */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,6 +82,8 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_UART4_Init(void);
 static void MX_RTC_Init(void);
+void sd_test();
+void setSdSpi();
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -93,9 +98,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  RTC_TimeTypeDef time;
-  RTC_DateTypeDef date;
-  char display[30];
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -119,7 +121,7 @@ int main(void)
   MX_SPI1_Init();
   MX_UART4_Init();
   MX_RTC_Init();
-  MX_FATFS_Init();
+  //MX_FATFS_Init();
 
   /* USER CODE BEGIN 2 */
   buttonsInit();
@@ -129,7 +131,9 @@ int main(void)
   ra6963ClearText();
   ra6963ClearCG();
 
-  esp8266Write("AT", 80, 500);
+  sd_test();
+
+/*  esp8266Write("AT", 80, 500);
   esp8266Write("AT+CWQAP", 80, 500);
   esp8266Write("AT+CWJAP_CUR=\"SCOTTCAMPUS\",\"mavericks\"", 76, 10000);
   esp8266Write("AT+CIPSTART=\"TCP\",\"18.221.30.192\",3000", 80, 500);
@@ -142,7 +146,7 @@ int main(void)
   HAL_Delay(1000);
 
   esp8266Write("AT+CIPMODE=0", 80, 500);
-  esp8266Write("AT+CIPCLOSE", 80, 500);
+  esp8266Write("AT+CIPCLOSE", 80, 500);*/
 
 /*  byte = readEepromByte(0);
   sprintf(display, "%d", byte);
@@ -554,6 +558,80 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		setAllCols();
 		while(readRow(2));
 	}
+}
+
+void setSdSpi()
+{
+	/* SPI1 parameter configuration*/
+	  hspi1.Instance = SPI1;
+	  hspi1.Init.Mode = SPI_MODE_MASTER;
+	  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+	  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+	  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+	  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+	  hspi1.Init.NSS = SPI_NSS_SOFT;
+	  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+	  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+	  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+	  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+	  hspi1.Init.CRCPolynomial = 10;
+	  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+	  {
+	    _Error_Handler(__FILE__, __LINE__);
+	  }
+}
+
+
+void sd_test()
+{
+	//uint32_t wbytes; /* File write counts */
+	//uint8_t wtext[] = "text to write logical disk"; /* File write buffer */
+	char line[15];
+
+	setSdSpi();
+
+	if(FATFS_LinkDriver(&SD_Driver, mynewdiskPath) == 0)
+	{
+		ra6963ClearText();
+		ra6963TextGoTo(0, 0);
+		ra6963WriteString("Linked");
+		HAL_Delay(1000);
+		if(f_mount(&mynewdiskFatFs, (TCHAR const*)mynewdiskPath, 0) == FR_OK)
+		{
+			ra6963ClearText();
+			ra6963TextGoTo(0, 0);
+			ra6963WriteString("Mounted");
+			HAL_Delay(1000);
+//			if(f_open(&MyFile, "STM32.TXT", FA_CREATE_ALWAYS | FA_WRITE) == FR_OK)
+			if(f_open(&MyFile, "STM32.TXT", FA_READ) == FR_OK)
+			{
+				ra6963ClearText();
+				ra6963TextGoTo(0, 0);
+				ra6963WriteString("Opened");
+				HAL_Delay(1000);
+//				if(f_write(&MyFile, wtext, sizeof(wtext), (void *)&wbytes) == FR_OK)
+				f_gets(line, sizeof(line), &MyFile);
+//				{
+					ra6963ClearText();
+					ra6963TextGoTo(0, 0);
+//					ra6963WriteString("Written");
+					ra6963WriteString("Read");
+					ra6963WriteString(line);
+					HAL_Delay(1000);
+					f_close(&MyFile);
+					ra6963ClearText();
+					ra6963TextGoTo(0, 0);
+					ra6963WriteString("Closed");
+					HAL_Delay(1000);
+//				}
+			}
+		}
+	}
+	FATFS_UnLinkDriver(mynewdiskPath);
+	ra6963ClearText();
+	ra6963TextGoTo(0, 0);
+	ra6963WriteString("Unlinked");
+	HAL_Delay(1000);
 }
 /* USER CODE END 4 */
 
