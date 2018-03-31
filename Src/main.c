@@ -54,6 +54,7 @@
 /* USER CODE BEGIN Includes */
 #include "AD7190.h"
 #include "adc.h"
+#include "buttons.h"
 #include "ra6963.h"
 /* USER CODE END Includes */
 
@@ -66,7 +67,8 @@ UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+const char* buttonStrings[24] = {"ZERO", "UNITS", "MENU", "UP", "DISPLAY TARE", "TARE", "ENTER", "RIGHT", "LEFT", "CALIBRATE", "DOWN", "GROSS/NET", "3", "2", "1", "5", "6", "4", "8", "9", "7", ".", "0", "DELETE"};
+int count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,10 +91,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  unsigned long buffer;
-  float voltage;
-  char voltString[20];
-  char display[30];
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -119,13 +117,14 @@ int main(void)
   MX_FATFS_Init();
 
   /* USER CODE BEGIN 2 */
+  buttonsInit();
   ra6963Init();
 
   ra6963ClearGraphic();
   ra6963ClearText();
   ra6963ClearCG();
 
-  if(adcInit(1) && adcInit(2))
+/*  if(adcInit(1) && adcInit(2))
   {
 	  ra6963TextGoTo(0,0);
 	  ra6963WriteString("Part Present");
@@ -145,14 +144,14 @@ int main(void)
   adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN1P_AIN2M, 2);
   adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN1P_AIN2M, 2);
   adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN3P_AIN4M, 2);
-  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 2);
+  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 2);*/
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN 3 */
   while (1)
   {
-	  // Read Channel 1 of ADC 1
+/*	  // Read Channel 1 of ADC 1
 	  adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
 	  buffer = adcSingleConversion(1);
 	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
@@ -188,7 +187,7 @@ int main(void)
 	  sprintf(display,"      %s mV", voltString);
 	  ra6963TextGoTo(0,6);
 	  ra6963WriteString(display);
-	  HAL_Delay(100);
+	  HAL_Delay(100);*/
   }
   /* USER CODE END 3 */
 
@@ -478,7 +477,50 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	uint8_t key;
+	uint8_t col;
+	char display[30];
+	delay(50);
+	if(GPIO_Pin == GPIO_PIN_5)
+	{
+		col = getCol(1);
+		if(col >= 1 && col <= 12)
+		{
+			ra6963ClearText();
+			count++;
+			ra6963TextGoTo(count, 0);
+			sprintf(display, "%d", count);
+			//ra6963WriteString(rowOneStrings[col - 1]);
+			ra6963WriteString(display);
+			key = getKey();
+			ra6963TextGoTo(count, 1);
+			//sprintf(display, "%d", key);
+			ra6963WriteString(buttonStrings[key]);
+		}
+		setAllCols();
+		while(readRow(1));
+	}
+	else if(GPIO_Pin == GPIO_PIN_6)
+	{
+		col = getCol(2);
+		if(col >= 1 && col <= 12)
+		{
+			count++;
+			ra6963ClearText();
+			ra6963TextGoTo(count, 0);
+			sprintf(display, "%d", count);
+			//ra6963WriteString(rowTwoStrings[col - 1]);
+			ra6963WriteString(display);
+			key = getKey();
+			ra6963TextGoTo(count, 1);
+			ra6963WriteString(buttonStrings[key]);
+		}
+		setAllCols();
+		while(readRow(2));
+	}
+}
 /* USER CODE END 4 */
 
 /**
