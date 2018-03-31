@@ -52,6 +52,8 @@
 #include "fatfs.h"
 
 /* USER CODE BEGIN Includes */
+#include "AD7190.h"
+#include "adc.h"
 #include "ra6963.h"
 /* USER CODE END Includes */
 
@@ -87,7 +89,10 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  unsigned long buffer;
+  float voltage;
+  char voltString[20];
+  char display[30];
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -120,37 +125,70 @@ int main(void)
   ra6963ClearText();
   ra6963ClearCG();
 
-  ra6963Line(0,0, 239, 0);
-  ra6963Line(0,0,0,63);
-  ra6963Line(239,0, 239, 63);
-  ra6963Line(239, 63, 0, 63);
+  if(adcInit(1) && adcInit(2))
+  {
+	  ra6963TextGoTo(0,0);
+	  ra6963WriteString("Part Present");
+  }
+  else
+  {
+	  ra6963TextGoTo(0,0);
+	  ra6963WriteString("Part(s) Not Present");
+  }
+  adcRangeSetup(0, AD7190_CONF_GAIN_128, 1);
+  adcRangeSetup(0, AD7190_CONF_GAIN_128, 2);
 
-  ra6963Circle(30,30,20);
-  ra6963Line(30, 10, 30, 20);
-
-  ra6963Circle(209,30,20);
-  ra6963Line(209, 10, 209, 20);
-
-  ra6963Rectangle(60, 6, 120, 48);
-
-  ra6963TextGoTo(8,1);
-  ra6963WriteString("radzio.dxp.pl");
-
-  ra6963TextGoTo(8,3);
-  ra6963WriteString("TOSHIBA T6963C");
-
-  ra6963TextGoTo(11,5);
-  ra6963WriteString("AT91SAM7");
+  adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN1P_AIN2M, 1);
+  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN1P_AIN2M, 1);
+  adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN3P_AIN4M, 1);
+  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 1);
+  adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN1P_AIN2M, 2);
+  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN1P_AIN2M, 2);
+  adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN3P_AIN4M, 2);
+  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+  /* USER CODE BEGIN 3 */
   while (1)
   {
-  /* USER CODE END WHILE */
+	  // Read Channel 1 of ADC 1
+	  adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
+	  buffer = adcSingleConversion(1);
+	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
+	  floatToString(voltage, voltString, 2);
+	  sprintf(display,"ADC1: %s mV", voltString);
+	  ra6963ClearText();
+	  ra6963TextGoTo(0,0);
+	  ra6963WriteString(display);
 
-  /* USER CODE BEGIN 3 */
+	  // Read Channel 2 of ADC 1
+	  adcChannelSelect(AD7190_CH_AIN3P_AIN4M, 1);
+	  buffer = adcSingleConversion(1);
+	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
+	  floatToString(voltage, voltString, 2);
+	  sprintf(display,"      %s mV", voltString);
+	  ra6963TextGoTo(0,2);
+	  ra6963WriteString(display);
 
+	  // Read Channel 1 of ADC 2
+	  adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 2);
+	  buffer = adcSingleConversion(2);
+	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
+	  floatToString(voltage, voltString, 2);
+	  sprintf(display,"ADC2: %s mV", voltString);
+	  ra6963TextGoTo(0,4);
+	  ra6963WriteString(display);
+
+	  // Read Channel 2 of ADC 2
+	  adcChannelSelect(AD7190_CH_AIN3P_AIN4M, 2);
+	  buffer = adcSingleConversion(2);
+	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
+	  floatToString(voltage, voltString, 2);
+	  sprintf(display,"      %s mV", voltString);
+	  ra6963TextGoTo(0,6);
+	  ra6963WriteString(display);
+	  HAL_Delay(100);
   }
   /* USER CODE END 3 */
 
