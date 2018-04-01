@@ -52,7 +52,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
@@ -146,6 +145,18 @@
 #define COL_10_Pin GPIO_PIN_9
 #define COL_10_GPIO_Port GPIOB
 
+typedef struct
+{
+	float voltage;	// voltage in mV
+	float weight;	// weight in kg
+}Calibration_Pair;
+
+typedef struct
+{
+	Calibration_Pair* array;
+	int used;
+	int size;
+}Calibration_Array;
 /* ########################## Assert Selection ############################## */
 /**
   * @brief Uncomment the line below to expanse the "assert_param" macro in the 

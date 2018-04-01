@@ -58,6 +58,8 @@
 #include "eeprom.h"
 #include "esp8266.h"
 #include "ra6963.h"
+#include <stdlib.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -74,6 +76,14 @@ int count = 0;
 FATFS mynewdiskFatFs; /* File system object for User logical drive */
 FIL MyFile; /* File object */
 char mynewdiskPath[4]; /* User logical drive path */
+float calibrationSlope0 = 0;
+float calibrationIntercept0 = 0;
+float calibrationSlope1 = 0;
+float calibrationIntercept1 = 0;
+float calibrationSlope2 = 0;
+float calibrationIntercept2 = 0;
+float calibrationSlope3 = 0;
+float calibrationIntercept3 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -84,6 +94,12 @@ static void MX_UART4_Init(void);
 static void MX_RTC_Init(void);
 void sd_test();
 void setSdSpi();
+void calibrate();
+float getLoadCellVoltage(uint8_t loadCell);
+void initCalibrationArray(Calibration_Array *arr, int initialSize);
+void insertArray(Calibration_Array *arr, Calibration_Pair pair);
+void freeArray(Calibration_Array *arr);
+void linearReg(Calibration_Array *arr, float* calibrationSlope, float* calibrationIntercept);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -98,6 +114,10 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  float voltage;
+  float weight;
+  char weightString[10];
+  char display[30];
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -131,7 +151,7 @@ int main(void)
   ra6963ClearText();
   ra6963ClearCG();
 
-  sd_test();
+  //sd_test();
 
 /*  esp8266Write("AT", 80, 500);
   esp8266Write("AT+CWQAP", 80, 500);
@@ -155,7 +175,7 @@ int main(void)
   ra6963WriteString(display);
   writeEepromByte(0, 15);*/
 
-/*  if(adcInit(1) && adcInit(2))
+  if(adcInit(1) && adcInit(2))
   {
 	  ra6963TextGoTo(0,0);
 	  ra6963WriteString("Part Present");
@@ -175,7 +195,7 @@ int main(void)
   adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN1P_AIN2M, 2);
   adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN1P_AIN2M, 2);
   adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN3P_AIN4M, 2);
-  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 2);*/
+  adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -189,18 +209,29 @@ int main(void)
 	  ra6963TextGoTo(0, 0);
 	  ra6963WriteString(display);
 	  HAL_Delay(500);*/
-/*	  // Read Channel 1 of ADC 1
-	  adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
-	  buffer = adcSingleConversion(1);
-	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
-	  floatToString(voltage, voltString, 2);
-	  sprintf(display,"ADC1: %s mV", voltString);
+	  // Read Channel 1 of ADC 1
+	  //adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
+	  //buffer = adcSingleConversion(1);
+	  //voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
+	  voltage = getLoadCellVoltage(0);
+	  weight = voltage * calibrationSlope0 + calibrationIntercept0;
+	  voltage = getLoadCellVoltage(1);
+	  weight += voltage * calibrationSlope1 + calibrationIntercept1;
+	  voltage = getLoadCellVoltage(2);
+	  weight += voltage * calibrationSlope2 + calibrationIntercept2;
+	  voltage = getLoadCellVoltage(3);
+	  weight += voltage * calibrationSlope3 + calibrationIntercept3;
+	  weight = weight / 4;
+
+	  floatToString(weight, weightString, 2);
+	  sprintf(display,"%s kg", weightString);
 	  ra6963ClearText();
 	  ra6963TextGoTo(0,0);
 	  ra6963WriteString(display);
+	  HAL_Delay(500);
 
 	  // Read Channel 2 of ADC 1
-	  adcChannelSelect(AD7190_CH_AIN3P_AIN4M, 1);
+/*	  adcChannelSelect(AD7190_CH_AIN3P_AIN4M, 1);
 	  buffer = adcSingleConversion(1);
 	  voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
 	  floatToString(voltage, voltString, 2);
@@ -517,52 +548,69 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	uint8_t key;
+	//uint8_t key;
 	uint8_t col;
-	char display[30];
+	//char display[30];
 	delay(50);
 	if(GPIO_Pin == GPIO_PIN_5)
 	{
 		col = getCol(1);
-		if(col >= 1 && col <= 12)
+		if(col >= 0 && col <= 11)
 		{
-			ra6963ClearText();
-			count++;
-			ra6963TextGoTo(count, 0);
-			sprintf(display, "%d", count);
-			//ra6963WriteString(rowOneStrings[col - 1]);
-			ra6963WriteString(display);
-			key = getKey();
-			ra6963TextGoTo(count, 1);
-			//sprintf(display, "%d", key);
-			ra6963WriteString(buttonStrings[key]);
+			switch(col)
+			{
+				case CALIBRATE:
+					calibrate();
+					break;
+				default:
+					ra6963ClearText();
+					ra6963TextGoTo(0, 0);
+					ra6963WriteString("NOT CALIBRATION MODE");
+			}
 		}
+
+/*		if(col >= 1 && col <= 12)
+		{
+			//ra6963ClearText();
+			//count++;
+			//ra6963TextGoTo(count, 0);
+			//sprintf(display, "%d", count);
+			//ra6963WriteString(rowOneStrings[col - 1]);
+			//ra6963WriteString(display);
+			//key = getKey();
+			//ra6963TextGoTo(count, 1);
+			//sprintf(display, "%d", key);
+			//ra6963WriteString(buttonStrings[key]);
+		}*/
 		setAllCols();
 		while(readRow(1));
 	}
 	else if(GPIO_Pin == GPIO_PIN_6)
 	{
 		col = getCol(2);
-		if(col >= 1 && col <= 12)
+		if(col >= 0 && col <= 11)
 		{
-			count++;
 			ra6963ClearText();
-			ra6963TextGoTo(count, 0);
-			sprintf(display, "%d", count);
+			ra6963TextGoTo(0, 0);
+			ra6963WriteString("NOT CALIBRATION MODE");
+			//count++;
+			//ra6963ClearText();
+			//ra6963TextGoTo(count, 0);
+			//sprintf(display, "%d", count);
 			//ra6963WriteString(rowTwoStrings[col - 1]);
-			ra6963WriteString(display);
-			key = getKey();
-			ra6963TextGoTo(count, 1);
-			ra6963WriteString(buttonStrings[key]);
+			//ra6963WriteString(display);
+			//key = getKey();
+			//ra6963TextGoTo(count, 1);
+			//ra6963WriteString(buttonStrings[key]);
 		}
 		setAllCols();
 		while(readRow(2));
 	}
 }
 
-void setSdSpi()
+/*void setSdSpi()
 {
-	/* SPI1 parameter configuration*/
+	 SPI1 parameter configuration
 	  hspi1.Instance = SPI1;
 	  hspi1.Init.Mode = SPI_MODE_MASTER;
 	  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
@@ -579,14 +627,217 @@ void setSdSpi()
 	  {
 	    _Error_Handler(__FILE__, __LINE__);
 	  }
+}*/
+
+void calibrate()
+{
+	static Calibration_Array LC0;
+	static Calibration_Array LC1;
+	static Calibration_Array LC2;
+	static Calibration_Array LC3;
+	static uint8_t init = 0;
+	Calibration_Pair tmp = {0, 0};
+	uint8_t key;
+	float cWeight;
+	char cWeightStr[10] = {0};
+	char display [30];
+
+	// Initialize arrays if not already initialized
+	if(!init)
+	{
+		initCalibrationArray(&LC0, 7);
+		initCalibrationArray(&LC1, 7);
+		initCalibrationArray(&LC2, 7);
+		initCalibrationArray(&LC3, 7);
+		init = 1;
+	}
+
+	ra6963ClearText();
+	ra6963TextGoTo(0, 0);
+	ra6963WriteString("CALIBRATION MODE");
+
+	// Wait for weight to be placed on scale
+	ra6963TextGoTo(0, 2);
+	ra6963WriteString("Press Enter After Calibrated");
+	ra6963TextGoTo(0, 3);
+	ra6963WriteString("Weight is Placed on Scale!");
+	do
+	{
+		key = getKey();
+	}while(key != ENTER);
+
+	//Read ADC values
+	tmp.voltage = getLoadCellVoltage(0);
+	insertArray(&LC0, tmp);
+	tmp.voltage = getLoadCellVoltage(1);
+	insertArray(&LC1, tmp);
+	tmp.voltage = getLoadCellVoltage(2);
+	insertArray(&LC2, tmp);
+	tmp.voltage = getLoadCellVoltage(3);
+	insertArray(&LC3, tmp);
+
+	//Get Weight
+	ra6963TextGoTo(0, 5);
+	ra6963WriteString("Enter Weight: ");
+	//cWeight  = atof(str);
+	//floatToString(cWeight, display, 2);
+	//ra6963TextGoTo(14, 5);
+	//ra6963WriteString("1");
+	do
+	{
+		key = getKey();
+		switch(key)
+		{
+			case ZERO:
+				strcat(cWeightStr, "0");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("0");
+				break;
+			case ONE:
+				strcat(cWeightStr, "1");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("1");
+				break;
+			case TWO:
+				strcat(cWeightStr, "2");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("2");
+				break;
+			case THREE:
+				strcat(cWeightStr, "3");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("3");
+				break;
+			case FOUR:
+				strcat(cWeightStr, "4");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("4");
+				break;
+			case FIVE:
+				strcat(cWeightStr, "5");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("5");
+				break;
+			case SIX:
+				strcat(cWeightStr, "6");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("6");
+				break;
+			case SEVEN:
+				strcat(cWeightStr, "7");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("7");
+				break;
+			case EIGHT:
+				strcat(cWeightStr, "8");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("8");
+				break;
+			case NINE:
+				strcat(cWeightStr, "9");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString("9");
+				break;
+			case PERIOD:
+				strcat(cWeightStr, ".");
+				ra6963TextGoTo(13 + strlen(cWeightStr), 5);
+				ra6963WriteString(".");
+				break;
+		}
+	}while(key != ENTER);
+	cWeight  = atof(cWeightStr);
+	LC0.array[LC0.used - 1].weight = cWeight;
+	LC1.array[LC1.used - 1].weight = cWeight;
+	LC2.array[LC2.used - 1].weight = cWeight;
+	LC3.array[LC3.used - 1].weight = cWeight;
+	floatToString(cWeight, display, 2);
+	ra6963TextGoTo(0, 6);
+	ra6963WriteString(display);
+	linearReg(&LC0, &calibrationSlope0, &calibrationIntercept0);
+	linearReg(&LC1, &calibrationSlope1, &calibrationIntercept1);
+	linearReg(&LC2, &calibrationSlope2, &calibrationIntercept2);
+	linearReg(&LC3, &calibrationSlope3, &calibrationIntercept3);
 }
 
+void linearReg(Calibration_Array *arr, float* calibrationSlope, float* calibrationIntercept)
+{
+	float voltageSum = 0;
+	float voltageSquaredSum = 0;
+	float weightSum = 0;
+	float voltageWeightSum = 0;
+	int length = arr->used;
 
-void sd_test()
+	for(int i = 0; i < length; i++)
+	{
+		float tmpVoltage = arr->array[i].voltage;
+		float tmpWeight = arr->array[i].weight;
+		voltageSum += tmpVoltage;
+		voltageSquaredSum += tmpVoltage * tmpVoltage;
+		weightSum += tmpWeight;
+		voltageWeightSum += tmpVoltage * tmpWeight;
+	}
+
+	*calibrationSlope = (length * voltageWeightSum - voltageSum * weightSum) / (length * voltageSquaredSum - voltageSum * voltageSum);
+	*calibrationIntercept = (weightSum * voltageSquaredSum - voltageSum * voltageWeightSum) / (length * voltageSquaredSum - voltageSum * voltageSum);
+}
+
+float getLoadCellVoltage(uint8_t loadCell)
+{
+	unsigned long buffer = 0;
+	float voltage;
+
+	switch(loadCell)
+	{
+		case 0:
+			adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 1);
+			buffer = adcSingleConversion(1);
+			break;
+		case 1:
+			adcChannelSelect(AD7190_CH_AIN3P_AIN4M, 1);
+			buffer = adcSingleConversion(1);
+			break;
+		case 2:
+			adcChannelSelect(AD7190_CH_AIN1P_AIN2M, 2);
+			buffer = adcSingleConversion(2);
+			break;
+		case 3:
+			adcChannelSelect(AD7190_CH_AIN3P_AIN4M, 2);
+			buffer = adcSingleConversion(2);
+			break;
+	}
+
+	voltage = ((float)buffer / 16777215ul) * 78.1 - 39.05;
+	return voltage;
+}
+
+void initCalibrationArray(Calibration_Array *arr, int initialSize)
+{
+	arr->array = (Calibration_Pair *)malloc(initialSize * sizeof(Calibration_Pair));
+	arr->used = 0;
+	arr->size = initialSize;
+}
+
+void insertArray(Calibration_Array *arr, Calibration_Pair pair)
+{
+	if(arr->used == arr->size)
+	{
+		arr->size *= 2;
+		arr->array = (Calibration_Pair *)realloc(arr->array, arr->size * sizeof(Calibration_Pair));
+	}
+	arr->array[arr->used++] = pair;
+}
+
+void freeArray(Calibration_Array *arr)
+{
+	free(arr->array);
+	arr->array = NULL;
+	arr->used = arr->size = 0;
+}
+/*void sd_test()
 {
 	//uint32_t wbytes; /* File write counts */
 	//uint8_t wtext[] = "text to write logical disk"; /* File write buffer */
-	char line[15];
+	/*char line[15];
 
 	setSdSpi();
 
@@ -632,7 +883,7 @@ void sd_test()
 	ra6963TextGoTo(0, 0);
 	ra6963WriteString("Unlinked");
 	HAL_Delay(1000);
-}
+}*/
 /* USER CODE END 4 */
 
 /**

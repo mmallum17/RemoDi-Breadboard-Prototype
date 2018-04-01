@@ -61,11 +61,11 @@ uint8_t getKey()
 	// Get Key
 	if(readRow(1))
 	{
-		key = getCol(1) - 1;
+		key = getCol(1);
 	}
 	else if(readRow(2))
 	{
-		key = 11 + getCol(2);
+		key = 12 + getCol(2);
 	}
 	else
 	{
@@ -96,7 +96,7 @@ uint8_t getCol(uint8_t row)
 		(*setCol[i])();
 		if(readRow(row))
 		{
-			return i + 1;
+			return i;
 		}
 	}
 	return -1;
