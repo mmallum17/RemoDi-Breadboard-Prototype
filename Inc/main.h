@@ -145,6 +145,15 @@
 #define COL_10_Pin GPIO_PIN_9
 #define COL_10_GPIO_Port GPIOB
 
+#define CAL_SLOPE_ADD_0		0
+#define CAL_INT_ADD_0		4
+#define CAL_SLOPE_ADD_1		8
+#define CAL_INT_ADD_1		12
+#define CAL_SLOPE_ADD_2		16
+#define CAL_INT_ADD_2		20
+#define CAL_SLOPE_ADD_3		24
+#define CAL_INT_ADD_3		28
+
 typedef struct
 {
 	float voltage;	// voltage in mV

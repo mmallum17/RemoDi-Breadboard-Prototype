@@ -118,6 +118,8 @@ int main(void)
   float weight;
   char weightString[10];
   char display[30];
+  int floatSize = sizeof(float);
+  //float test = 1.1;
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -174,6 +176,14 @@ int main(void)
   ra6963TextGoTo(0, 0);
   ra6963WriteString(display);
   writeEepromByte(0, 15);*/
+  calibrationSlope0 = readEepromFloat(CAL_SLOPE_ADD_0);
+  calibrationIntercept0 = readEepromFloat(CAL_INT_ADD_0);
+  calibrationSlope1 = readEepromFloat(CAL_SLOPE_ADD_1);
+  calibrationIntercept1 = readEepromFloat(CAL_INT_ADD_1);
+  calibrationSlope2 = readEepromFloat(CAL_SLOPE_ADD_2);
+  calibrationIntercept2 = readEepromFloat(CAL_INT_ADD_2);
+  calibrationSlope3 = readEepromFloat(CAL_SLOPE_ADD_3);
+  calibrationIntercept3 = readEepromFloat(CAL_INT_ADD_3);
 
   if(adcInit(1) && adcInit(2))
   {
@@ -196,6 +206,16 @@ int main(void)
   adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN1P_AIN2M, 2);
   adcCalibrate(AD7190_MODE_CAL_INT_ZERO, AD7190_CH_AIN3P_AIN4M, 2);
   adcCalibrate(AD7190_MODE_CAL_INT_FULL, AD7190_CH_AIN3P_AIN4M, 2);
+  /*ra6963ClearText();
+  ra6963TextGoTo(0, 0);
+  sprintf(display, "%d", test);
+  ra6963WriteString(display);
+  writeEepromFloat(0, test);
+
+  test = readEepromFloat(0);
+  floatToString(test, display, 2);
+  ra6963TextGoTo(0, 1);
+  ra6963WriteString(display);*/
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -224,7 +244,8 @@ int main(void)
 	  weight = weight / 4;
 
 	  floatToString(weight, weightString, 2);
-	  sprintf(display,"%s kg", weightString);
+
+	  sprintf(display,"%s kg  %d", weightString, floatSize);
 	  ra6963ClearText();
 	  ra6963TextGoTo(0,0);
 	  ra6963WriteString(display);
@@ -754,9 +775,17 @@ void calibrate()
 	ra6963TextGoTo(0, 6);
 	ra6963WriteString(display);
 	linearReg(&LC0, &calibrationSlope0, &calibrationIntercept0);
+	writeEepromFloat(CAL_SLOPE_ADD_0, calibrationSlope0);
+	writeEepromFloat(CAL_INT_ADD_0, calibrationIntercept0);
 	linearReg(&LC1, &calibrationSlope1, &calibrationIntercept1);
+	writeEepromFloat(CAL_SLOPE_ADD_1, calibrationSlope1);
+	writeEepromFloat(CAL_INT_ADD_1, calibrationIntercept1);
 	linearReg(&LC2, &calibrationSlope2, &calibrationIntercept2);
+	writeEepromFloat(CAL_SLOPE_ADD_2, calibrationSlope2);
+	writeEepromFloat(CAL_INT_ADD_2, calibrationIntercept2);
 	linearReg(&LC3, &calibrationSlope3, &calibrationIntercept3);
+	writeEepromFloat(CAL_SLOPE_ADD_3, calibrationSlope3);
+	writeEepromFloat(CAL_INT_ADD_3, calibrationIntercept3);
 }
 
 void linearReg(Calibration_Array *arr, float* calibrationSlope, float* calibrationIntercept)
